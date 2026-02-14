@@ -4,10 +4,15 @@ import numpy as np
 import faiss
 from datetime import datetime
 
-DB_PATH = "memory.db"
-INDEX_PATH = "index.faiss"
-DIM = 384
+# Always store DB beside this file (VERY IMPORTANT for Render)
+BASE_DIR = os.path.dirname(__file__)
+DB_PATH = os.path.join(BASE_DIR, "memory.db")
+INDEX_PATH = os.path.join(BASE_DIR, "index.faiss")
 
+DIM = 384  # embedding size
+
+
+# ---------- SQLITE ----------
 conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 cursor = conn.cursor()
 
@@ -21,7 +26,8 @@ CREATE TABLE IF NOT EXISTS knowledge (
 """)
 conn.commit()
 
-# -------- FAISS --------
+
+# ---------- FAISS ----------
 if os.path.exists(INDEX_PATH):
     index = faiss.read_index(INDEX_PATH)
 else:
@@ -29,33 +35,51 @@ else:
 
 
 def add_memory(employee: str, topic: str, embedding):
-    vector = np.array([embedding]).astype("float32")
+    embedding = np.array([embedding]).astype("float32")
 
-    index.add(vector)
-    faiss.write_index(index, INDEX_PATH)
-
+    # store metadata
     cursor.execute(
         "INSERT INTO knowledge (employee, topic, timestamp) VALUES (?, ?, ?)",
-        (employee, topic, datetime.utcnow().isoformat())
+        (employee, topic, str(datetime.utcnow()))
     )
     conn.commit()
 
+    # store vector
+    index.add(embedding)
+    faiss.write_index(index, INDEX_PATH)
 
-def search_memory(query_embedding, k=5):
+
+def search_memory(question_embedding, k=3):
     if index.ntotal == 0:
-        return []
+        return None
 
-    vector = np.array([query_embedding]).astype("float32")
-    distances, ids = index.search(vector, k)
+    question_embedding = np.array([question_embedding]).astype("float32")
+    distances, indices = index.search(question_embedding, k)
 
-    results = []
-    for idx in ids[0]:
+    matches = []
+    for idx, dist in zip(indices[0], distances[0]):
         if idx == -1:
             continue
 
-        cursor.execute("SELECT employee, topic FROM knowledge WHERE id = ?", (idx + 1,))
+        cursor.execute("SELECT employee, topic FROM knowledge WHERE id=?", (idx + 1,))
         row = cursor.fetchone()
         if row:
-            results.append(row)
+            employee, topic = row
+            similarity = 1 / (1 + dist)  # convert L2 distance to similarity
+            matches.append((employee, similarity, topic))
 
-    return results
+    if not matches:
+        return None
+
+    # pick best employee
+    best_employee = {}
+    for emp, score, topic in matches:
+        if emp not in best_employee:
+            best_employee[emp] = [score, []]
+        best_employee[emp][0] += score
+        best_employee[emp][1].append(topic)
+
+    employee = max(best_employee, key=lambda x: best_employee[x][0])
+    score, topics = best_employee[employee]
+
+    return employee, score, topics
