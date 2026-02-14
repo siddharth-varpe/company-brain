@@ -1,10 +1,7 @@
 from fastapi import FastAPI
-from .expert_finder import find_expert
-from .learning import learn_issue
-from .github_webhook import router as github_router
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
-from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,
@@ -14,19 +11,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(github_router)
+# lazy imports (CRITICAL)
+@app.on_event("startup")
+def load_routes():
+    from .github_webhook import router as github_router
+    from .learning import learn_issue
+    from .expert_finder import find_expert
 
+    app.include_router(github_router)
 
-@app.get("/")
-def home():
-    return {"message": "Company Brain running"}
+    @app.get("/")
+    def home():
+        return {"message": "Company Brain running"}
 
+    @app.get("/ask")
+    def ask_question(question: str):
+        return find_expert(question)
 
-@app.get("/ask")
-def ask_question(question: str):
-    return find_expert(question)
-
-
-@app.post("/learn")
-def learn(employee: str, topic: str):
-    return learn_issue(employee, topic)
+    @app.post("/learn")
+    def learn(employee: str, topic: str):
+        return learn_issue(employee, topic)

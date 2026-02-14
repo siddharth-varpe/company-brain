@@ -1,7 +1,7 @@
 fastapi
-uvicorn
-requests
+uvicorn[standard]
 numpy
 faiss-cpu
 python-dotenv
-huggingface-hub
+sentence-transformers
+torch --index-url https://download.pytorch.org/whl/cpu

@@ -1,29 +1,22 @@
+# embedder.py
 import os
-import requests
+from functools import lru_cache
 from dotenv import load_dotenv
 
 load_dotenv()
 
-HF_TOKEN = os.getenv("HF_TOKEN")
+MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
-API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
 
-headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+@lru_cache(maxsize=1)
+def get_model():
+    from sentence_transformers import SentenceTransformer
+    return SentenceTransformer(MODEL_NAME)
 
 
 def get_embedding(text: str):
-
     if not text:
         return [0.0] * 384
 
-    response = requests.post(API_URL, headers=headers, json={"inputs": text})
-
-    if response.status_code != 200:
-        return [0.0] * 384
-
-    embedding = response.json()
-
-    if isinstance(embedding[0], list):
-        embedding = embedding[0]
-
-    return embedding[:384]
+    model = get_model()
+    return model.encode(text).tolist()

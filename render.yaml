@@ -2,5 +2,6 @@ services:
   - type: web
     name: company-brain
     env: python
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "bash start.sh"
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash start.sh
