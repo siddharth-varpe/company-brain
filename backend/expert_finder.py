@@ -1,29 +1,36 @@
-from collections import Counter
-from .embedder import get_embedding
 from .db.vector_store import search_memory
 
+def confidence_label(score: float):
+    if score > 0.75:
+        return "High confidence"
+    elif score > 0.45:
+        return "Medium confidence"
+    elif score > 0.25:
+        return "Low confidence"
+    return "Very weak"
 
 def find_expert(question: str):
+    results = search_memory(question)
 
-    embedding = get_embedding(question)
-    memories = search_memory(embedding)
-
-    if not memories:
+    if not results:
         return {
             "expert": "Unknown",
-            "reason": "No one in company has worked on this yet",
+            "reason": "No knowledge learned yet",
             "evidence": []
         }
 
-    employees = [emp for emp, _ in memories]
-    topics = [topic for _, topic in memories]
+    best_employee, best_score, topics = results
 
-    best_employee = Counter(employees).most_common(1)[0][0]
-
-    related_topics = [t for e, t in memories if e == best_employee]
+    # Realistic threshold for MiniLM embeddings
+    if best_score < 0.20:
+        return {
+            "expert": "Unknown",
+            "reason": "Knowledge too unrelated",
+            "evidence": []
+        }
 
     return {
         "expert": best_employee,
-        "reason": "Has solved similar issues in the past",
-        "evidence": related_topics[:5]
+        "reason": f"Similarity match ({confidence_label(best_score)})",
+        "evidence": topics
     }
