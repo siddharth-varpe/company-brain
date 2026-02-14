@@ -1,26 +1,29 @@
-# embedder.py
 import os
+import requests
 from dotenv import load_dotenv
-from sentence_transformers import SentenceTransformer
-from huggingface_hub import login
 
-# load environment variables
 load_dotenv()
 
 HF_TOKEN = os.getenv("HF_TOKEN")
 
-# login to huggingface (prevents rate limits & download failures)
-if HF_TOKEN:
-    login(token=HF_TOKEN)
+API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
 
-# lightweight model (safe for free hosting)
-MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+headers = {"Authorization": f"Bearer {HF_TOKEN}"}
 
-print("Loading embedding model... (first time takes ~20s)")
-model = SentenceTransformer(MODEL_NAME)
-print("Model loaded successfully")
 
 def get_embedding(text: str):
+
     if not text:
-        return [0.0] * 384  # safe fallback
-    return model.encode(text).tolist()
+        return [0.0] * 384
+
+    response = requests.post(API_URL, headers=headers, json={"inputs": text})
+
+    if response.status_code != 200:
+        return [0.0] * 384
+
+    embedding = response.json()
+
+    if isinstance(embedding[0], list):
+        embedding = embedding[0]
+
+    return embedding[:384]

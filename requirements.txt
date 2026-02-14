@@ -2,7 +2,6 @@ fastapi
 uvicorn
 requests
 numpy
-scikit-learn
+faiss-cpu
 python-dotenv
-sentence-transformers
-torch
+huggingface-hub
