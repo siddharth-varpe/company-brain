@@ -1,33 +1,36 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Query
+from fastapi.responses import JSONResponse
+from expert_finder import find_expert
+from learning import learn_topic
 
-app = FastAPI()
+app = FastAPI(title="Company Brain API")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
-# lazy imports (CRITICAL)
-@app.on_event("startup")
-def load_routes():
-    from .github_webhook import router as github_router
-    from .learning import learn_issue
-    from .expert_finder import find_expert
+# Health check (important for Render)
+@app.get("/")
+def root():
+    return {"status": "alive", "service": "company-brain"}
 
-    app.include_router(github_router)
 
-    @app.get("/")
-    def home():
-        return {"message": "Company Brain running"}
+# ---------------- LEARN ----------------
+# Works in browser AND curl
+@app.get("/learn")
+@app.post("/learn")
+def learn(employee: str = Query(...), topic: str = Query(...)):
+    try:
+        learn_topic(employee, topic)
+        return {"status": "learned", "employee": employee, "topic": topic}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
-    @app.get("/ask")
-    def ask_question(question: str):
-        return find_expert(question)
 
-    @app.post("/learn")
-    def learn(employee: str, topic: str):
-        return learn_issue(employee, topic)
+# ---------------- ASK ----------------
+# Works in browser AND curl
+@app.get("/ask")
+@app.post("/ask")
+def ask(question: str = Query(...)):
+    try:
+        result = find_expert(question)
+        return {"question": question, "answer": result}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
