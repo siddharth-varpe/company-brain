@@ -3,5 +3,5 @@ uvicorn
 sentence-transformers
 scikit-learn
 numpy
-faiss-cpu
+requests
 python-multipart
