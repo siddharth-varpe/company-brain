@@ -1,0 +1,22 @@
+# python
+__pycache__/
+*.pyc
+
+# virtual environment
+venv/
+env/
+
+# model cache
+.cache/
+*.bin
+*.pt
+
+# database
+*.db
+*.faiss
+
+# OS
+.DS_Store
+
+# vscode
+.vscode/
