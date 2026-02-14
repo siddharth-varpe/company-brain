@@ -1,22 +1,24 @@
-# embedder.py
 import os
-from functools import lru_cache
-from dotenv import load_dotenv
+import requests
 
-load_dotenv()
+HF_TOKEN = os.getenv("HF_TOKEN")
+MODEL_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
 
-MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
-
-
-@lru_cache(maxsize=1)
-def get_model():
-    from sentence_transformers import SentenceTransformer
-    return SentenceTransformer(MODEL_NAME)
+headers = {"Authorization": f"Bearer {HF_TOKEN}"}
 
 
 def get_embedding(text: str):
-    if not text:
-        return [0.0] * 384
+    if not HF_TOKEN:
+        raise Exception("HF_TOKEN not set in environment")
 
-    model = get_model()
-    return model.encode(text).tolist()
+    response = requests.post(
+        MODEL_URL,
+        headers=headers,
+        json={"inputs": text},
+        timeout=30
+    )
+
+    if response.status_code != 200:
+        raise Exception(f"Embedding failed: {response.text}")
+
+    return response.json()[0]

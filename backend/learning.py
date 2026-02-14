@@ -1,15 +1,8 @@
-from datetime import datetime
-from .embedder import get_embedding
-from .db.vector_store import add_memory
+from embedder import get_embedding
+from db.vector_store import add_memory, init_db
 
-def learn_issue(employee: str, topic: str):
+init_db()
 
-    embedding = get_embedding(topic)
-
-    add_memory(employee, topic, embedding)
-
-    return {
-        "status": "learned",
-        "employee": employee,
-        "topic": topic
-    }
+def learn_topic(employee, topic):
+    emb = get_embedding(topic)
+    add_memory(employee, topic, emb)
