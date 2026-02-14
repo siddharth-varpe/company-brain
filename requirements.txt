@@ -1,7 +1,6 @@
 fastapi
 uvicorn
-sentence-transformers
-scikit-learn
-numpy
 requests
-python-multipart
+numpy
+scikit-learn
+python-dotenv
