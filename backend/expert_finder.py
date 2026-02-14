@@ -1,5 +1,5 @@
-from embedder import get_embedding
-from db.vector_store import search
+from backend.embedder import get_embedding
+from backend.db.vector_store import search
 
 def find_expert(question: str):
     emb = get_embedding(question)

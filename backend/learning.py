@@ -1,5 +1,5 @@
-from embedder import get_embedding
-from db.vector_store import add_memory, init_db
+from backend.embedder import get_embedding
+from backend.db.vector_store import add_memory, init_db
 
 init_db()
 

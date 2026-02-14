@@ -1,6 +1,6 @@
-from fastapi import FastAPI, Query
-from learning import learn_topic
-from expert_finder import find_expert
+from fastapi import FastAPI
+from backend.learning import learn_topic
+from backend.expert_finder import find_expert
 
 app = FastAPI()
 
