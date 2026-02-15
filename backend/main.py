@@ -12,7 +12,10 @@ def home():
 
 @app.get("/ask")
 def ask(q: str):
-    return {"results": ask_brain(q)}
+    try:
+        return {"results": ask_brain(q)}
+    except Exception as e:
+        return {"results": "Brain is warming up..."}
 
 @app.get("/health")
 def health():
