@@ -3,4 +3,4 @@ services:
     name: company-brain
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: ./start.sh
+    startCommand: bash ./start.sh
