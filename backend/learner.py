@@ -4,25 +4,34 @@ from backend.vectordb import add
 from backend.expertise_db import update_expertise
 
 def detect_topic(message: str):
-    """
-    Very simple topic detection (safe for now)
-    Later we will upgrade to semantic clustering
-    """
     text = message.lower()
 
-    if "auth" in text or "login" in text or "token" in text or "jwt" in text:
-        return "authentication"
+    auth_words = [
+        "login","auth","token","jwt","session","signin","signup","password","credential"
+    ]
 
-    if "payment" in text or "checkout" in text or "transaction" in text:
-        return "payment"
+    payment_words = [
+        "payment","checkout","refund","transaction","upi","card","billing","invoice"
+    ]
 
-    if "db" in text or "database" in text or "query" in text:
-        return "database"
+    db_words = [
+        "db","database","query","sql","migration","schema","table","index"
+    ]
 
-    if "ui" in text or "css" in text or "frontend" in text:
-        return "frontend"
+    ui_words = [
+        "ui","css","frontend","layout","button","responsive","design"
+    ]
+
+    def match(words):
+        return any(w in text for w in words)
+
+    if match(auth_words): return "authentication"
+    if match(payment_words): return "payment"
+    if match(db_words): return "database"
+    if match(ui_words): return "frontend"
 
     return "general"
+
 
 
 def learn_commit(author: str, message: str):

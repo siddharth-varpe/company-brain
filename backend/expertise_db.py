@@ -51,10 +51,13 @@ def get_top_experts(topic, k=3):
     if topic not in expertise:
         return []
 
-    ranked = sorted(
-        expertise[topic].items(),
-        key=lambda x: x[1]["score"],
-        reverse=True
-    )
+    scored = []
 
-    return [name for name, _ in ranked[:k]]
+    for author, data in expertise[topic].items():
+        factor = decay_factor(data["last"])
+        score = data["score"] * factor
+        scored.append((author, score))
+
+    scored.sort(key=lambda x: x[1], reverse=True)
+
+    return [a for a, _ in scored[:k]]
