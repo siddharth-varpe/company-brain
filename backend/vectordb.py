@@ -10,9 +10,9 @@ META_FILE = os.path.join(DATA_DIR, "meta.json")
 DIM = 384  # embedding size
 
 # ----------- strictness controls -----------
-SIMILARITY_THRESHOLD = 0.35   # lower = stricter (0.25 very strict, 0.45 loose)
+SIMILARITY_THRESHOLD = 0.55   # lower = stricter (0.25 very strict, 0.45 loose)
 MIN_VALID_MATCHES = 2         # minimum evidence commits needed
-TOP_K = 20
+TOP_K = 8
 
 
 # ----------- load or create index ----------

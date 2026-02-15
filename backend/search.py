@@ -1,42 +1,40 @@
-from collections import defaultdict
-from backend.expertise_db import get_top_experts
 from backend.embedder import get_embedding
-from backend.vectordb import search
+from backend.topic_engine import find_experts
 
 
 def ask_brain(question: str):
 
-    # detect topic same way learner detects
-    from backend.learner import detect_topic
-    topic = detect_topic(question)
+    if not question.strip():
+        return {
+            "status": "no_expert",
+            "message": "Empty question"
+        }
 
-    # 1️⃣ Get experts by knowledge graph
-    experts = get_top_experts(topic, k=3)
+    vector = get_embedding(question)
 
-    if not experts:
+    result = find_experts(vector)
+
+    if not result:
         return {
             "status": "no_expert",
             "message": "No relevant expert found for this issue yet."
         }
 
-    # 2️⃣ Validate using semantic evidence
-    vec = get_embedding(question)
-    evidence = search(vec)
+    ranked, confidence_score = result
 
-    evidence_count = defaultdict(int)
-    for r in evidence:
-        evidence_count[r["author"]] += 1
+    best_author = ranked[0][0]
+    best_count = ranked[0][1]
 
-    best = experts[0]
-    similar_count = evidence_count.get(best, 0)
+    others = [name for name,_ in ranked[1:]]
+
+    confidence = "high" if confidence_score > 0.75 else "medium"
 
     return {
         "status": "expert_found",
-        "recommended_person": best,
+        "recommended_person": best_author,
         "reason": {
-            "topic": topic,
-            "similar_issues_solved": similar_count,
-            "confidence": "high" if similar_count >= 3 else "medium"
+            "similar_issues_solved": best_count,
+            "confidence": confidence
         },
-        "other_possible_contacts": experts[1:]
+        "other_possible_contacts": others
     }

@@ -1,15 +1,24 @@
-import hashlib
+from sentence_transformers import SentenceTransformer
 import numpy as np
+import os
 
-DIM = 64
+# Lazy load (critical for 512MB RAM)
+_model = None
 
-def get_embedding(text: str):
-    h = hashlib.sha256(text.encode()).hexdigest()
+def get_model():
+    global _model
+    if _model is None:
+        _model = SentenceTransformer("all-MiniLM-L6-v2")
+    return _model
 
-    needed = DIM * 2
-    while len(h) < needed:
-        h += h
 
-    vec = [int(h[i:i+2], 16)/255 for i in range(0, needed, 2)]
+def get_embedding(text: str) -> np.ndarray:
+    model = get_model()
+
+    vec = model.encode(
+        text,
+        normalize_embeddings=True,   # makes cosine similarity reliable
+        show_progress_bar=False
+    )
 
     return np.array(vec, dtype="float32")
