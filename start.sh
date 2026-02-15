@@ -1,3 +1,5 @@
 #!/usr/bin/env bash
-echo "Starting Company Brain..."
-python -m backend.main
+
+export PYTHONPATH=$PYTHONPATH:$(pwd)
+
+uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}

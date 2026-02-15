@@ -2,7 +2,4 @@ fastapi
 uvicorn
 faiss-cpu
 numpy
-requests
-python-dotenv
-sentence-transformers
-huggingface-hub
+pydantic

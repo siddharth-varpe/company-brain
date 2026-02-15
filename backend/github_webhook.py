@@ -1,31 +1,17 @@
 from fastapi import APIRouter, Request
-from .learning import learn_issue
+from backend.learner import learn_commit
 
 router = APIRouter()
 
-@router.post("/github/webhook")
-async def github_webhook(request: Request):
+@router.post("/webhook/github")
+async def github_webhook(req: Request):
+    payload = await req.json()
 
-    payload = await request.json()
+    commits = payload.get("commits", [])
 
-    employee = payload.get("pusher", {}).get("name", "Unknown")
+    for c in commits:
+        author = c.get("author", {}).get("name", "unknown")
+        message = c.get("message", "")
+        learn_commit(author, message)
 
-    learned = []
-
-    for commit in payload.get("commits", []):
-        message = commit.get("message", "").strip()
-
-        if not message:
-            continue
-
-        if message.lower().startswith("merge"):
-            continue
-
-        learn_issue(employee, message)
-        learned.append(message)
-
-    return {
-        "status": "processed",
-        "employee": employee,
-        "learned_topics": learned
-    }
+    return {"stored": len(commits)}

@@ -1,22 +1,19 @@
 from fastapi import FastAPI
-from backend.learning import learn_topic
-from backend.expert_finder import find_expert
+from backend.github_webhook import router as github_router
+from backend.search import ask_brain
 
 app = FastAPI()
 
+app.include_router(github_router)
 
 @app.get("/")
-def health():
-    return {"status": "running"}
-
-
-@app.get("/learn")
-def learn(employee: str, topic: str):
-    learn_topic(employee, topic)
-    return {"message": "learned", "employee": employee, "topic": topic}
-
+def home():
+    return {"status": "Company Brain Alive"}
 
 @app.get("/ask")
-def ask(question: str):
-    answer = find_expert(question)
-    return {"answer": answer}
+def ask(q: str):
+    return {"results": ask_brain(q)}
+
+@app.get("/health")
+def health():
+    return {"ok": True}
