@@ -3,30 +3,33 @@ from backend.learner import learn_commit
 
 router = APIRouter()
 
+
 @router.post("/webhook/github")
 async def github_webhook(req: Request):
-    try:
-        payload = await req.json()
-        commits = payload.get("commits", [])
+    payload = await req.json()
 
-        learned = 0
+    # GitHub sends many events — we only care about push commits
+    commits = payload.get("commits", [])
 
-        for c in commits:
-            try:
-                author = c.get("author", {}).get("name", "unknown")
-                message = c.get("message", "")
+    stored = 0
 
-                if message.strip() == "":
-                    continue
+    for c in commits:
+        # -------------------------------
+        # REAL AUTHOR IDENTITY (important)
+        # -------------------------------
+        author = (
+            c.get("author", {}).get("username")  # GitHub username (best)
+            or c.get("author", {}).get("name")   # fallback to git name
+            or "unknown"
+        )
 
-                learn_commit(author, message)
-                learned += 1
+        message = c.get("message", "").strip()
 
-            except Exception as e:
-                print("Commit skipped:", e)
+        # ignore empty commits
+        if not message:
+            continue
 
-        return {"stored": learned}
+        learn_commit(author, message)
+        stored += 1
 
-    except Exception as e:
-        print("Webhook failed:", e)
-        return {"stored": 0}
+    return {"stored": stored}
