@@ -1,67 +1,36 @@
-from datetime import datetime, timedelta
-from collections import defaultdict
+from collections import Counter
 from backend.embedder import get_embedding
 from backend.vectordb import search
 
 
-def recency_label(last_time):
-    if not last_time:
-        return "worked on this earlier"
-
-    diff = datetime.utcnow() - last_time
-
-    if diff < timedelta(days=1):
-        return "worked on this today"
-    elif diff < timedelta(days=7):
-        return "worked on this recently"
-    elif diff < timedelta(days=30):
-        return "worked on this this month"
-    else:
-        return "worked on this earlier"
-
-
 def ask_brain(question: str):
     vec = get_embedding(question)
+    results = search(vec)
 
-    # fetch many matches to evaluate expertise
-    results = search(vec, k=25)
-
+    # -------- no expert ----------
     if not results:
-        return "No expert learned yet."
+        return {
+            "status": "no_expert",
+            "message": "No relevant expert found for this issue yet."
+        }
 
-    stats = defaultdict(lambda: {"count": 0, "last": None})
-
-    # aggregate expertise
+    # -------- count authors ----------
+    author_counter = Counter()
     for r in results:
-        author = r.get("author", "unknown")
-        stats[author]["count"] += 1
+        author_counter[r["author"]] += 1
 
-        ts = r.get("timestamp")
-        if ts:
-            try:
-                t = datetime.fromisoformat(ts)
-                if not stats[author]["last"] or t > stats[author]["last"]:
-                    stats[author]["last"] = t
-            except:
-                pass
+    # best expert
+    best_author, best_count = author_counter.most_common(1)[0]
 
-    # rank developers
-    ranked = sorted(stats.items(), key=lambda x: x[1]["count"], reverse=True)
+    # other contacts
+    others = [a for a, _ in author_counter.most_common()[1:3]]
 
-    best_author, best_data = ranked[0]
-    others = [name for name, _ in ranked[1:3]]
-
-    # ----- Build explanation -----
-    lines = []
-    lines.append(f"Recommended person: {best_author}")
-    lines.append("")
-    lines.append("Reason:")
-    lines.append(f"• Solved {best_data['count']} similar issues")
-    lines.append(f"• {recency_label(best_data['last'])}")
-
-    if others:
-        lines.append("")
-        lines.append("Other possible contacts:")
-        lines.append(", ".join(others))
-
-    return "\n".join(lines)
+    return {
+        "status": "expert_found",
+        "recommended_person": best_author,
+        "reason": {
+            "similar_issues_solved": best_count,
+            "confidence": "high" if best_count >= 4 else "medium"
+        },
+        "other_possible_contacts": others
+    }

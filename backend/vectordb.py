@@ -7,52 +7,64 @@ DATA_DIR = "data"
 INDEX_FILE = os.path.join(DATA_DIR, "index.faiss")
 META_FILE = os.path.join(DATA_DIR, "meta.json")
 
-DIM = 64  # MUST match embedder
+DIM = 384  # embedding size
 
-os.makedirs(DATA_DIR, exist_ok=True)
+# ----------- strictness controls -----------
+SIMILARITY_THRESHOLD = 0.35   # lower = stricter (0.25 very strict, 0.45 loose)
+MIN_VALID_MATCHES = 2         # minimum evidence commits needed
+TOP_K = 20
 
-# ---------- LOAD OR CREATE INDEX ----------
+
+# ----------- load or create index ----------
 if os.path.exists(INDEX_FILE):
-    try:
-        index = faiss.read_index(INDEX_FILE)
-    except:
-        index = faiss.IndexFlatL2(DIM)
+    index = faiss.read_index(INDEX_FILE)
 else:
     index = faiss.IndexFlatL2(DIM)
 
-# ---------- LOAD META ----------
 if os.path.exists(META_FILE):
-    try:
-        with open(META_FILE, "r") as f:
-            meta = json.load(f)
-    except:
-        meta = []
+    with open(META_FILE, "r") as f:
+        meta = json.load(f)
 else:
     meta = []
 
-# ---------- SAVE ----------
+
 def save():
+    os.makedirs(DATA_DIR, exist_ok=True)
     faiss.write_index(index, INDEX_FILE)
     with open(META_FILE, "w") as f:
         json.dump(meta, f)
 
-# ---------- ADD ----------
+
+# ----------- add commit ----------
 def add(vector, data):
-    vector = np.array([vector]).astype("float32")
-    index.add(vector)
+    vec = np.array([vector]).astype("float32")
+    index.add(vec)
     meta.append(data)
     save()
 
-# ---------- SEARCH ----------
-def search(query_vector, k=3):
+
+# ----------- search commits ----------
+def search(query_vec):
     if index.ntotal == 0:
         return []
 
-    query_vector = np.array([query_vector]).astype("float32")
-    distances, ids = index.search(query_vector, k)
+    vec = np.array([query_vec]).astype("float32")
+    D, I = index.search(vec, TOP_K)
 
-    results = []
-    for i in ids[0]:
-        if i < len(meta):
-            results.append(meta[i])
-    return results
+    valid_results = []
+
+    for dist, idx in zip(D[0], I[0]):
+        if idx == -1:
+            continue
+
+        # Reject weak semantic matches
+        if dist > SIMILARITY_THRESHOLD:
+            continue
+
+        valid_results.append(meta[idx])
+
+    # Not enough evidence → no expert exists
+    if len(valid_results) < MIN_VALID_MATCHES:
+        return []
+
+    return valid_results

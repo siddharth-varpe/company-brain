@@ -18,10 +18,12 @@ async def github_webhook(req: Request):
         # REAL AUTHOR IDENTITY (important)
         # -------------------------------
         author = (
-            c.get("author", {}).get("username")  # GitHub username (best)
-            or c.get("author", {}).get("name")   # fallback to git name
-            or "unknown"
-        )
+    c.get("author", {}).get("name")
+    or c.get("commit", {}).get("author", {}).get("name")
+    or "Unknown"
+)
+
+        
 
         message = c.get("message", "").strip()
 

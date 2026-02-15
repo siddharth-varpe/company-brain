@@ -3,7 +3,6 @@ from backend.embedder import get_embedding
 from backend.vectordb import add
 from backend.expertise_db import update_expertise
 
-
 def detect_topic(message: str):
     """
     Very simple topic detection (safe for now)
