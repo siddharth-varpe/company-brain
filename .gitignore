@@ -1,0 +1,24 @@
+# python
+__pycache__/
+*.pyc
+*.pyo
+
+# virtual env
+venv/
+.env/
+
+# ML models / cache
+*.bin
+*.pt
+*.onnx
+*.model
+*.safetensors
+.cache/
+huggingface/
+
+# OS
+.DS_Store
+
+# data runtime
+data/index.faiss
+data/meta.json
