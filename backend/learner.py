@@ -1,43 +1,51 @@
+from datetime import datetime
 from backend.embedder import get_embedding
-from backend.vectordb import add, search
+from backend.vectordb import add
 from backend.expertise_db import update_expertise
 
-def infer_topic(message, neighbors):
+
+def detect_topic(message: str):
     """
-    Topic = most common meaningful word among similar commits
-    (simple but works surprisingly well)
+    Very simple topic detection (safe for now)
+    Later we will upgrade to semantic clustering
     """
-    words = message.lower().split()
+    text = message.lower()
 
-    # remove noise words
-    ignore = {"fix","fixed","added","update","updated","bug","issue","error","the","a","an","to","for"}
-    words = [w for w in words if w not in ignore and len(w) > 3]
+    if "auth" in text or "login" in text or "token" in text or "jwt" in text:
+        return "authentication"
 
-    if not words:
-        return "general"
+    if "payment" in text or "checkout" in text or "transaction" in text:
+        return "payment"
 
-    return words[0]
+    if "db" in text or "database" in text or "query" in text:
+        return "database"
+
+    if "ui" in text or "css" in text or "frontend" in text:
+        return "frontend"
+
+    return "general"
 
 
 def learn_commit(author: str, message: str):
-    text = f"{author}: {message}"
+    try:
+        # 1️⃣ embedding
+        vector = get_embedding(message)
 
-    # 1️⃣ embed
-    vec = get_embedding(text)
+        # 2️⃣ detect topic
+        topic = detect_topic(message)
 
-    # 2️⃣ find similar commits (topic detection)
-    neighbors = search(vec, k=5)
+        # 3️⃣ update expertise index
+        update_expertise(topic, author)
 
-    topic = infer_topic(message, neighbors)
+        # 4️⃣ store raw commit memory
+        data = {
+            "author": author,
+            "message": message,
+            "topic": topic,
+            "timestamp": datetime.utcnow().isoformat()
+        }
 
-    # 3️⃣ update expertise knowledge
-    update_expertise(topic, author)
+        add(vector, data)
 
-    # 4️⃣ store raw memory (training layer)
-    data = {
-        "author": author,
-        "message": message,
-        "topic": topic
-    }
-
-    add(vec, data)
+    except Exception as e:
+        print("Learning failed:", e)

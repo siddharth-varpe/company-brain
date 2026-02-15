@@ -12,11 +12,8 @@ def home():
 
 @app.get("/ask")
 def ask(q: str):
-    try:
-        experts = ask_brain(q)
-        return experts
-    except Exception as e:
-        return {"error": str(e)}
+    return ask_brain(q)
+
 
 @app.get("/health")
 def health():
