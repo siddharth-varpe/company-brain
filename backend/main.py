@@ -12,37 +12,47 @@ def home():
     return {"status": "Company Brain Alive"}
 
 
-@app.get("/ask")
-def ask(q: str):
-    return ask_brain(q)
-
-
 @app.get("/health")
 def health():
     return {"ok": True}
 
-@app.get("/debug/db")
-def debug_db():
-    from backend.expertise_db import load_db
-    db = load_db()
-    return {
-        "total_records": len(db),
-        "sample": db[:5]
-    }
 
-@app.get("/admin/reset")
-def reset():
-    import os, json
-    import faiss
-    import numpy as np
+@app.get("/ask")
+def ask(q: str):
 
-    # recreate empty index
-    dim = 384
-    index = faiss.IndexFlatL2(dim)
-    faiss.write_index(index, "data/index.faiss")
+    result = ask_brain(q)
 
-    # clear metadata
-    with open("data/meta.json", "w") as f:
-        json.dump([], f)
+    # ---------------- NO EXPERT ----------------
+    if result["status"] == "no_expert":
+        return "No relevant expert found for this issue yet."
 
-    return {"status": "brain reset"}
+    expert = result["recommended_person"]
+    count = result["reason"]["similar_issues_solved"]
+    confidence = result["reason"]["confidence"]
+    others = result["other_possible_contacts"]
+
+    # ---- fix zero count wording ----
+    if count == 0:
+        solved_text = "Has worked in this area but no exact similar issue recorded yet"
+    elif count == 1:
+        solved_text = "Solved 1 similar issue"
+    else:
+        solved_text = f"Solved {count} similar issues"
+
+    # ---- fix others empty ----
+    if not others:
+        others_text = "No other expert found"
+    else:
+        others_text = ", ".join(others)
+
+    formatted = f"""Recommended person: {expert}
+
+Reason:
+• {solved_text}
+• Confidence level: {confidence}
+
+Other possible contacts:
+{others_text}
+"""
+
+    return formatted
