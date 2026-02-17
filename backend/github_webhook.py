@@ -1,12 +1,10 @@
 from fastapi import APIRouter, Request
 import json
 import os
-from datetime import datetime
 
 router = APIRouter()
 
 QUEUE_FILE = "data/commit_queue.json"
-os.makedirs("data", exist_ok=True)
 
 
 def load_queue():
@@ -21,27 +19,39 @@ def save_queue(q):
         json.dump(q, f, indent=2)
 
 
+def enqueue(commit):
+    q = load_queue()
+    q.append(commit)
+    save_queue(q)
+    print("📥 Webhook queued:", commit, flush=True)
+
+
 @router.post("/webhook/github")
 async def github_webhook(request: Request):
     payload = await request.json()
-    commits = payload.get("commits", [])
 
-    queue = load_queue()
+    if "commits" not in payload:
+        return {"status": "ignored", "reason": "not a push event"}
 
-    added = 0
-    for commit in commits:
-        message = commit.get("message")
-        author = commit.get("author", {}).get("name")
+    count = 0
 
-        if message and author:
-            queue.append({
-                "author": author,
-                "message": message,
-                "timestamp": datetime.utcnow().isoformat()
-            })
-            added += 1
+    for c in payload["commits"]:
+        message = c.get("message", "").strip()
 
-    save_queue(queue)
+        author = (
+            c.get("author", {}).get("name")
+            or payload.get("pusher", {}).get("name")
+            or "unknown"
+        )
 
-    # IMPORTANT: instant success response for GitHub
-    return {"status": "queued", "added": added}
+        if not message:
+            continue
+
+        enqueue({
+            "author": author,
+            "message": message
+        })
+
+        count += 1
+
+    return {"status": "processed", "count": count}
