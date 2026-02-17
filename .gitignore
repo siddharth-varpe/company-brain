@@ -19,6 +19,6 @@ huggingface/
 # OS
 .DS_Store
 
-# data runtime
-data/index.faiss
-data/meta.json
+# runtime temp files
+*.log
+*.tmp
