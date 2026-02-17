@@ -1,37 +1,47 @@
 from fastapi import APIRouter, Request
-from backend.learner import learn_commit
+import json
+import os
+from datetime import datetime
 
 router = APIRouter()
 
+QUEUE_FILE = "data/commit_queue.json"
+os.makedirs("data", exist_ok=True)
+
+
+def load_queue():
+    if os.path.exists(QUEUE_FILE):
+        with open(QUEUE_FILE, "r") as f:
+            return json.load(f)
+    return []
+
+
+def save_queue(q):
+    with open(QUEUE_FILE, "w") as f:
+        json.dump(q, f, indent=2)
+
 
 @router.post("/webhook/github")
-async def github_webhook(req: Request):
-    payload = await req.json()
-
-    # GitHub sends many events — we only care about push commits
+async def github_webhook(request: Request):
+    payload = await request.json()
     commits = payload.get("commits", [])
 
-    stored = 0
+    queue = load_queue()
 
-    for c in commits:
-        # -------------------------------
-        # REAL AUTHOR IDENTITY (important)
-        # -------------------------------
-        author = (
-    c.get("author", {}).get("name")
-    or c.get("commit", {}).get("author", {}).get("name")
-    or "Unknown"
-)
+    added = 0
+    for commit in commits:
+        message = commit.get("message")
+        author = commit.get("author", {}).get("name")
 
-        
+        if message and author:
+            queue.append({
+                "author": author,
+                "message": message,
+                "timestamp": datetime.utcnow().isoformat()
+            })
+            added += 1
 
-        message = c.get("message", "").strip()
+    save_queue(queue)
 
-        # ignore empty commits
-        if not message:
-            continue
-
-        learn_commit(author, message)
-        stored += 1
-
-    return {"stored": stored}
+    # IMPORTANT: instant success response for GitHub
+    return {"status": "queued", "added": added}
