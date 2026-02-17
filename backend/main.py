@@ -1,4 +1,3 @@
-print("🚀 MAIN FILE LOADED", flush=True)
 from fastapi import FastAPI
 from backend.github_webhook import router as github_router
 from backend.search import ask_brain
@@ -8,13 +7,17 @@ import time
 import json
 import os
 
+print("🚀 MAIN FILE LOADED", flush=True)
+
+app = FastAPI()
+
+# attach routes AFTER app creation
+app.include_router(github_router)
+
 QUEUE_FILE = "data/commit_queue.json"
 
-# lazy import (RAM safe)
-def process_commit(commit):
-    from backend.learner import learn_commit
-    learn_commit(commit["author"], commit["message"])
 
+# ---------------- QUEUE STORAGE ----------------
 
 def load_queue():
     if os.path.exists(QUEUE_FILE):
@@ -22,48 +25,54 @@ def load_queue():
             return json.load(f)
     return []
 
+
 def save_queue(q):
     with open(QUEUE_FILE, "w") as f:
         json.dump(q, f, indent=2)
 
 
-# ---------------- BACKGROUND WORKER ----------------
+def enqueue(commit):
+    q = load_queue()
+    q.append(commit)
+    save_queue(q)
+    print("📥 Commit queued:", commit, flush=True)
+
+
+def dequeue():
+    q = load_queue()
+    if not q:
+        return None
+    commit = q.pop(0)
+    save_queue(q)
+    return commit
+
+
+# ---------------- PROCESSOR ----------------
+
+def process_commit(commit):
+    from backend.learner import learn_commit
+    print("🧠 Processing:", commit, flush=True)
+    learn_commit(commit["author"], commit["message"])
+
+
 def background_worker():
-    print("🧠 Background learner started", flush=True)
-
+    print("🧵 Background learner started", flush=True)
     while True:
-        try:
-            queue = load_queue()
-
-            if queue:
-                commit = queue.pop(0)
-                save_queue(queue)
-
-                print("Learning:", commit["author"], "|", commit["message"], flush=True)
-
-                process_commit(commit)
-
-            time.sleep(5)
-
-        except Exception as e:
-            print("Worker error:", e, flush=True)
-            time.sleep(10)
+        commit = dequeue()
+        if commit:
+            process_commit(commit)
+        time.sleep(2)
 
 
-# ---------------- FASTAPI ----------------
-app = FastAPI()
-app.include_router(github_router)
+# start worker
+threading.Thread(target=background_worker, daemon=True).start()
 
 
-@app.on_event("startup")
-def start_worker():
-    print("Starting background worker...", flush=True)
-    threading.Thread(target=background_worker, daemon=True).start()
-
+# ---------------- API ----------------
 
 @app.get("/")
 def home():
-    return {"status": "Company Brain Alive"}
+    return {"status": "brain running"}
 
 
 @app.get("/health")
@@ -72,33 +81,5 @@ def health():
 
 
 @app.get("/ask")
-def ask(q: str):
-    result = ask_brain(q)
-
-    if result["status"] == "no_expert":
-        return "No relevant expert found for this issue"
-
-    expert = result["recommended_person"]
-    count = result["reason"]["similar_issues_solved"]
-    confidence = result["reason"]["confidence"]
-    others = result["other_possible_contacts"]
-
-    if count == 0:
-        solved_text = "Has worked in this area but no direct fixes yet"
-    elif count == 1:
-        solved_text = "Solved 1 similar issue"
-    else:
-        solved_text = f"Solved {count} similar issues"
-
-    others_text = ", ".join(others) if others else "No other expert found"
-
-    formatted = f"""Recommended person: {expert}
-
-Reason:
-• {solved_text}
-• Confidence level: {confidence}
-
-Other possible contacts: {others_text}
-"""
-
-    return formatted
+def ask(question: str):
+    return ask_brain(question)
